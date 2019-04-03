@@ -636,7 +636,7 @@ od_frontend_remote(od_client_t *client)
 			if (status != OD_OK)
 				break;
 			server = client->server;
-			server->relay_status = "Atached";
+			server->relay_status = "Attached";
 			status = od_relay_start(&server->relay, client->cond,
 			                        OD_ESERVER_READ,
 			                        OD_ECLIENT_WRITE,
@@ -659,7 +659,9 @@ od_frontend_remote(od_client_t *client)
 		if (server == NULL)
 			continue;
 
+		do {
 		status = od_relay_step(&server->relay);
+		} while (status == OD_SKIP);
         if (server) server->relay_status = "od_relay_step done";
 		if (status == OD_DETACH)
 		{
@@ -685,9 +687,6 @@ od_frontend_remote(od_client_t *client)
 			od_router_detach(router, &instance->config, client);
 			server = NULL;
 		}
-        else if (status == OD_SKIP) {
-            continue;
-        }
 		else if (status != OD_OK) {
             if (client && client->server) {
                 client->server->relay_status = "bad status";
