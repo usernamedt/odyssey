@@ -684,8 +684,11 @@ od_frontend_remote(od_client_t *client)
 			od_instance_t *instance = client->global->instance;
 			od_router_detach(router, &instance->config, client);
 			server = NULL;
-		} else
-		if (status != OD_OK) {
+		}
+        else if (status == OD_SKIP) {
+            continue;
+        }
+		else if (status != OD_OK) {
             if (client && client->server) {
                 client->server->relay_status = "bad status";
                 client->server->status = '0' + (int)status;
