@@ -615,16 +615,20 @@ od_frontend_remote(od_client_t *client)
 	od_server_t *server;
 	for (;;)
 	{
+        server->relay_status = "begin of remote loop";
 		machine_cond_wait(client->cond, UINT32_MAX);
+        server->relay_status = "Condition happened";
 
 		/* client operations */
 		status = od_frontend_ctl(client);
+        server->relay_status = "od_frontend_ctl";
 		if (status != OD_OK)
 			break;
 
 		server = client->server;
 		/* attach */
 		status = od_relay_step(&client->relay);
+        server->relay_status = "od_relay_step";
 		if (status == OD_ATTACH)
 		{
 			assert(server == NULL);
