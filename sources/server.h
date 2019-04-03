@@ -39,6 +39,7 @@ struct od_server
 	void              *route;
 	od_global_t       *global;
 	od_list_t          link;
+	char               status;
 };
 
 static inline void

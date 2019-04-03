@@ -99,6 +99,7 @@ od_backend_ready(od_server_t *server, char *data, uint32_t size)
 	rc = kiwi_fe_read_ready(data, size, &status);
 	if (rc == -1)
 		return -1;
+	server->status = status;
 	if (status == 'I') {
 		/* no active transaction */
 		server->is_transaction = 0;
