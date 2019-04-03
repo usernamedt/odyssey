@@ -412,6 +412,11 @@ od_console_show_servers_server_cb(od_server_t *server, void **argv)
     rc = kiwi_be_write_data_row_add(msg, offset, data, data_len);
     if (rc == -1)
         return -1;
+    /* relay_status */
+    data_len = od_snprintf(data, sizeof(data), "%s", server->relay_status);
+    rc = kiwi_be_write_data_row_add(msg, offset, data, data_len);
+    if (rc == -1)
+        return -1;
 	return 0;
 }
 
@@ -441,7 +446,7 @@ od_console_show_servers(od_client_t *client, machine_msg_t *stream)
 
 	machine_msg_t *msg;
 	msg = kiwi_be_write_row_descriptionf(stream,
-	                                     "sssssdsdssssdsss",
+	                                     "sssssdsdssssdssss",
 	                                     "type",
 	                                     "user",
 	                                     "database",
@@ -457,7 +462,8 @@ od_console_show_servers(od_client_t *client, machine_msg_t *stream)
 	                                     "remote_pid",
 	                                     "tls",
 	                                     "is_transaction",
-	                                     "last_status");
+	                                     "last_status",
+	                                     "relay_status");
 	if (msg == NULL)
 		return -1;
 

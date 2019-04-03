@@ -40,6 +40,7 @@ struct od_server
 	od_global_t       *global;
 	od_list_t          link;
 	char               status;
+	char              *relay_status;
 };
 
 static inline void

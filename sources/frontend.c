@@ -479,6 +479,7 @@ od_frontend_remote_server(od_relay_t *relay, char *data, int size)
 	case KIWI_BE_READY_FOR_QUERY:
 	{
 		is_ready_for_query = 1;
+        server->relay_status = "Ready for query";
 		od_backend_ready(server, data, size);
 
 		/* update server stats */
@@ -509,6 +510,7 @@ od_frontend_remote_server(od_relay_t *relay, char *data, int size)
 	if (is_ready_for_query) {
 		if (route->rule->pool == OD_RULE_POOL_TRANSACTION &&
 		    !server->is_transaction) {
+            server->relay_status = "Want to detach";
 			return OD_DETACH;
 		}
 	}
@@ -629,6 +631,7 @@ od_frontend_remote(od_client_t *client)
 			if (status != OD_OK)
 				break;
 			server = client->server;
+			server->relay_status = "Atached";
 			status = od_relay_start(&server->relay, client->cond,
 			                        OD_ESERVER_READ,
 			                        OD_ECLIENT_WRITE,
@@ -654,6 +657,7 @@ od_frontend_remote(od_client_t *client)
 		status = od_relay_step(&server->relay);
 		if (status == OD_DETACH)
 		{
+            server->relay_status = "Detached";
 			/* write any pending data to server first */
 			od_status_t status;
 			status = od_relay_flush(&server->relay);
