@@ -612,7 +612,7 @@ od_frontend_remote(od_client_t *client)
 	if (status != OD_OK)
 		return status;
 
-	od_server_t *server;
+	od_server_t *server = NULL;
 	for (;;)
 	{
         if (server) server->relay_status = "begin of remote loop";
