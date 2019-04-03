@@ -458,6 +458,7 @@ od_frontend_remote_server(od_relay_t *relay, char *data, int size)
 
 	int is_deploy = od_server_in_deploy(server);
 	int is_ready_for_query = 0;
+    server->relay_status = "Read data from remote";
 
 	int rc;
 	switch (type) {
@@ -655,6 +656,7 @@ od_frontend_remote(od_client_t *client)
 			continue;
 
 		status = od_relay_step(&server->relay);
+        server->relay_status = "od_relay_step done";
 		if (status == OD_DETACH)
 		{
             server->relay_status = "Detached";
