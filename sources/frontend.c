@@ -686,7 +686,7 @@ od_frontend_remote(od_client_t *client)
 			server = NULL;
 		} else
 		if (status != OD_OK) {
-            if (server) server->relay_status = "bad status";
+            if (client && client->server) client->server->relay_status = "bad status";
 			break;
 		}
 	}
