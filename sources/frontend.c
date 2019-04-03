@@ -697,6 +697,7 @@ od_frontend_remote(od_client_t *client)
 
 		od_status_t flush_status;
 		flush_status = od_relay_flush(&server->relay);
+        od_relay_detach(&client->relay);
 		od_relay_stop(&server->relay);
 		if (flush_status != OD_OK)
 			return flush_status;
