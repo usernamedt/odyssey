@@ -322,6 +322,8 @@ od_auth_frontend_md5(od_client_t *client)
 	return 0;
 }
 
+#if 0
+
 static inline int
 od_auth_frontend_scram_sha_256(od_client_t *client)
 {
@@ -630,6 +632,8 @@ od_auth_frontend_scram_sha_256(od_client_t *client)
 	return 0;
 }
 
+#endif
+
 static inline int
 od_auth_frontend_cert(od_client_t *client)
 {
@@ -712,9 +716,9 @@ od_auth_frontend(od_client_t *client)
 				return -1;
 			break;
 		case OD_RULE_AUTH_SCRAM_SHA_256:
-			rc = od_auth_frontend_scram_sha_256(client);
-			if (rc == -1)
-				return -1;
+//			rc = od_auth_frontend_scram_sha_256(client);
+//			if (rc == -1)
+//				return -1;
 			break;
 		case OD_RULE_AUTH_CERT:
 			rc = od_auth_frontend_cert(client);
@@ -880,6 +884,8 @@ od_auth_backend_md5(od_server_t *server, char salt[4])
 	}
 	return 0;
 }
+
+#if 0
 
 static inline int
 od_auth_backend_sasl(od_server_t *server)
@@ -1059,6 +1065,9 @@ od_auth_backend_sasl_final(od_server_t *server,
 	return 0;
 }
 
+#endif
+
+
 int
 od_auth_backend(od_server_t *server, machine_msg_t *msg)
 {
@@ -1102,6 +1111,7 @@ od_auth_backend(od_server_t *server, machine_msg_t *msg)
 			if (rc == -1)
 				return -1;
 			break;
+#if 0
 		/* AuthenticationSASL */
 		case 10:
 			return od_auth_backend_sasl(server);
@@ -1113,6 +1123,7 @@ od_auth_backend(od_server_t *server, machine_msg_t *msg)
 		case 12:
 			return od_auth_backend_sasl_final(
 			  server, auth_data, auth_data_size);
+#endif
 		/* unsupported */
 		default:
 			od_error(&instance->logger,

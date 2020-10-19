@@ -15,7 +15,6 @@ set(od_src
     attribute.c
     auth_query.c
     auth.c
-    scram.c
     cancel.c
     console.c
     deploy.c
