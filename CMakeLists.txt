@@ -92,6 +92,20 @@ if (PAM_FOUND)
     include_directories(${PAM_INCLUDE_DIR})
 endif()
 
+# use zstd
+find_package(Zstd REQUIRED)
+if(ZSTD_FOUND)
+    include_directories(${ZSTD_INCLUDE_DIR})
+    set(od_libraries ${od_libraries} ${ZSTD_LIBRARY})
+endif()
+
+# use zlib
+find_package(ZLIB REQUIRED)
+if(ZLIB_FOUND)
+    include_directories(${ZLIB_INCLUDE_DIRS})
+    set(od_libraries ${od_libraries} ${ZLIB_LIBRARIES})
+endif()
+
 # machinarium
 include(BuildMachinarium)
 build_machinarium()

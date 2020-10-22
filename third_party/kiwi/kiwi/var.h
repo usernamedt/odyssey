@@ -19,6 +19,7 @@ typedef enum
 	KIWI_VAR_TIMEZONE,
 	KIWI_VAR_STANDARD_CONFORMING_STRINGS,
 	KIWI_VAR_APPLICATION_NAME,
+	KIWI_VAR_COMPRESSION,
 	KIWI_VAR_MAX,
 	KIWI_VAR_UNDEF
 } kiwi_var_type_t;
@@ -101,6 +102,10 @@ kiwi_vars_init(kiwi_vars_t *vars)
 	              28);
 	kiwi_var_init(
 	  &vars->vars[KIWI_VAR_APPLICATION_NAME], "application_name", 17);
+
+	// add compression variable (testing)
+	kiwi_var_init(
+	  &vars->vars[KIWI_VAR_COMPRESSION], "compression", 12);
 }
 
 static inline int

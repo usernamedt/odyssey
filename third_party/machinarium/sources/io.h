@@ -1,3 +1,6 @@
+//temp
+#include "zpq_stream.h"
+
 #ifndef MM_IO_H
 #define MM_IO_H
 
@@ -64,6 +67,8 @@ struct mm_io
 	machine_cond_t *on_read;
 	machine_cond_t *on_write;
 	mm_call_t call;
+	/* compression */
+    ZpqStream *zpq_stream;
 };
 
 int
