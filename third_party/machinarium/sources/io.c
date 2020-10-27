@@ -171,6 +171,18 @@ machine_set_tls(machine_io_t *obj, machine_tls_t *tls, uint32_t timeout)
 	return mm_tls_handshake(io, timeout);
 }
 
+MACHINE_API int
+machine_set_compression(machine_io_t *obj, zpq_tx_func tx_func, zpq_rx_func rx_func, char compression_algorithm)
+{
+    mm_io_t *io = mm_cast(mm_io_t *, obj);
+    if (io->zpq_stream) {
+        mm_errno_set(EINPROGRESS);
+        return -1;
+    }
+    io->zpq_stream = zpq_create(tx_func, rx_func, obj, compression_algorithm);
+    return 0;
+}
+
 MACHINE_API machine_io_t *
 machine_io_create(void)
 {

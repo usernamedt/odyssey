@@ -15,8 +15,7 @@
 #include <machinarium.h>
 #include <kiwi.h>
 #include <odyssey.h>
-#include  "zpq_stream.h"
-
+#include <zpq_stream.h>
 
 static inline void
 od_frontend_close(od_client_t *client)
@@ -161,62 +160,64 @@ od_frontend_startup(od_client_t *client)
 		return -1;
 
 	if (!client->startup.is_ssl_request) {
-        kiwi_var_t *compression_var =
-          kiwi_vars_get(&client->vars, KIWI_VAR_COMPRESSION);
+		kiwi_var_t *compression_var =
+		  kiwi_vars_get(&client->vars, KIWI_VAR_COMPRESSION);
 
 		if (compression_var != NULL) {
-            /*
-             * If client request compression, it sends list of supported compression algorithms.
-             * Each compression algorirthm is idetified by one letter ('f' - Facebook zsts, 'z' - xlib)
-             */
+			/*
+			 * If client request compression, it sends list of supported
+			 * compression algorithms. Each compression algorirthm is idetified
+			 * by one letter ('f' - Facebook zsts, 'z' - xlib)
+			 */
 
 			// odyssey supported compression algos
-            char server_compression_algorithms[ZPQ_MAX_ALGORITHMS];
+			char server_compression_algorithms[ZPQ_MAX_ALGORITHMS];
 
 			// chosen compression algo
-            char compression_algorithm = ZPQ_NO_COMPRESSION;
-            //char compression[6] = {'z',0,0,0,5,0}; /* message length = 5 */
-            //int rc;
+			char compression_algorithm = ZPQ_NO_COMPRESSION;
+			// char compression[6] = {'z',0,0,0,5,0}; /* message length = 5 */
+			// int rc;
 
-            /* Get list of compression algorithms, supported by server */
-            zpq_get_supported_algorithms(server_compression_algorithms);
+			/* Get list of compression algorithms, supported by server */
+			zpq_get_supported_algorithms(server_compression_algorithms);
 
 			// client compression algos
-            char* client_compression_algorithms = compression_var->value;
+			char *client_compression_algorithms = compression_var->value;
 
-            /* Intersect lists */
-            while (*client_compression_algorithms != '\0')
-            {
-                if (strchr(server_compression_algorithms, *client_compression_algorithms))
-                {
-                    compression_algorithm = *client_compression_algorithms;
-                    break;
-                }
-                client_compression_algorithms += 1;
-            }
+			/* Intersect lists */
+			while (*client_compression_algorithms != '\0') {
+				if (strchr(server_compression_algorithms,
+				           *client_compression_algorithms)) {
+					compression_algorithm = *client_compression_algorithms;
+					break;
+				}
+				client_compression_algorithms += 1;
+			}
 
-            // compression[5] = compression_algorithm;
-            /* Send 'z' message to the client with selectde comression algorithm ('n' if match is ont found) */
-            //socket_set_nonblocking(false);
+			// compression[5] = compression_algorithm;
+			/* Send 'z' message to the client with selectde comression algorithm
+			 * ('n' if match is ont found) */
+			// socket_set_nonblocking(false);
 
-            msg = kiwi_be_write_compression_ack(NULL, compression_algorithm);
-            if (msg == NULL)
-                return -1;
-            rc = od_write(&client->io, msg);
-            if (rc == -1) {
-                od_error(&instance->logger,
-                         "compression",
-                         client,
-                         NULL,
-                         "write error: %s",
-                         od_io_error(&client->io));
-                return -1;
-            }
+			msg = kiwi_be_write_compression_ack(NULL, compression_algorithm);
+			if (msg == NULL)
+				return -1;
+			rc = od_write(&client->io, msg);
+			if (rc == -1) {
+				od_error(&instance->logger,
+				         "compression",
+				         client,
+				         NULL,
+				         "write error: %s",
+				         od_io_error(&client->io));
+				return -1;
+			}
 
-            /* todo initialize compression */
-            if (zpq_set_algorithm(compression_algorithm))
-                PqStream = zpq_create((zpq_tx_func)secure_write, (zpq_rx_func)secure_read, MyProcPort);
-
+			/* todo initialize compression */
+			machine_set_compression(client->io.io,
+			                        (zpq_tx_func)machine_write_raw_old,
+			                        (zpq_rx_func)machine_read_raw_old,
+			                        compression_algorithm);
 		}
 		return 0;
 	}
@@ -236,12 +237,12 @@ od_frontend_startup(od_client_t *client)
 	if (rc == -1)
 		goto error;
 
-    kiwi_var_t *compression_var =
-      kiwi_vars_get(&client->vars, KIWI_VAR_COMPRESSION);
+	kiwi_var_t *compression_var =
+	  kiwi_vars_get(&client->vars, KIWI_VAR_COMPRESSION);
 
-    if (compression_var != NULL) {
-        // todo init compression w/ SSL enabled
-    }
+	if (compression_var != NULL) {
+		// todo init compression w/ SSL enabled
+	}
 
 	return 0;
 
@@ -1355,7 +1356,7 @@ od_frontend(void *arg)
 	}
 
 	/* setup client and run main loop */
- 	od_route_t *route = client->route;
+	od_route_t *route = client->route;
 	od_error_logger_t *l;
 	l = router->route_pool.err_logger;
 

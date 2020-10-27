@@ -84,6 +84,20 @@ machine_read_stop(machine_io_t *obj)
 MACHINE_API ssize_t
 machine_read_raw(machine_io_t *obj, void *buf, size_t size)
 {
+	// add compression handling
+    mm_io_t *io = mm_cast(mm_io_t *, obj);
+
+    /* If streaming compression is enabled then use correspondent compression read function. */
+	if (mm_compression_is_active(io)) {
+		return zpq_read(io->zpq_stream, buf, size);
+	}
+
+	return machine_read_raw_old(obj, buf, size);
+}
+
+MACHINE_API ssize_t
+machine_read_raw_old(machine_io_t *obj, void *buf, size_t size)
+{
 	mm_io_t *io = mm_cast(mm_io_t *, obj);
 	mm_errno_set(0);
 	ssize_t rc;
@@ -91,6 +105,7 @@ machine_read_raw(machine_io_t *obj, void *buf, size_t size)
 		rc = mm_tls_read(io, buf, size);
 	else
 		rc = mm_socket_read(io->fd, buf, size);
+
 	if (rc > 0) {
 		return rc;
 	}

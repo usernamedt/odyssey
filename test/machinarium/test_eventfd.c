@@ -8,7 +8,8 @@ test_condition_coroutine(void *arg)
 	machine_io_t *io = arg;
 	uint64_t wakeup_ = 123;
 	int rc;
-	rc = machine_write_raw(io, (void *)&wakeup_, sizeof(wakeup_));
+	size_t processed = 0;
+	rc = machine_write_raw(io, (void *)&wakeup_, sizeof(wakeup_), &processed);
 	test(rc == sizeof(wakeup_));
 }
 

@@ -39,6 +39,7 @@ set(machine_src
     accept.c
     shutdown.c
     dns.c
+    zpq_stream.c
     compression.c)
 
 add_library(machine_library_static STATIC ${machine_src})

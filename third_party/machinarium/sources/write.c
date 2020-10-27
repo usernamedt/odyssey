@@ -74,7 +74,22 @@ machine_write_stop(machine_io_t *obj)
 }
 
 MACHINE_API ssize_t
-machine_write_raw(machine_io_t *obj, void *buf, size_t size)
+machine_write_raw(machine_io_t *obj, void *buf, size_t size, size_t *processed)
+{
+	// add compression handling
+	mm_io_t *io = mm_cast(mm_io_t *, obj);
+
+	/* If streaming compression is enabled then use correspondent compression
+	 * read function. */
+	if (mm_compression_is_active(io)) {
+		return zpq_write(io->zpq_stream, buf, size, processed);
+	}
+
+	return machine_write_raw_old(obj, buf, size);
+}
+
+MACHINE_API ssize_t
+machine_write_raw_old(machine_io_t *obj, void *buf, size_t size)
 {
 	mm_io_t *io = mm_cast(mm_io_t *, obj);
 	mm_errno_set(0);
@@ -105,11 +120,20 @@ machine_writev_raw(machine_io_t *obj, machine_iov_t *obj_iov)
 	int iov_to_write    = iov->iov_count;
 	if (iov_to_write > IOV_MAX)
 		iov_to_write = IOV_MAX;
+
 	ssize_t rc;
-	if (mm_tls_is_active(io))
+	if (mm_compression_is_active(io)) {
+		size_t processed = 0;
+		rc = mm_compression_writev(io, iovec, iov_to_write, &processed);
+		// processed > 0 in case of error return code, but consumed input
+		if (processed > 0) {
+			mm_iov_advance(iov, processed);
+		}
+	} else if (mm_tls_is_active(io))
 		rc = mm_tls_writev(io, iovec, iov_to_write);
 	else
 		rc = mm_socket_writev(io->fd, iovec, iov_to_write);
+
 	if (rc > 0) {
 		mm_iov_advance(iov, rc);
 		return rc;
@@ -157,7 +181,9 @@ machine_write(machine_io_t *obj, machine_msg_t *msg, uint32_t time_ms)
 			mm_write_stop(io);
 			goto error;
 		}
-		rc = machine_write_raw(obj, src + total, size - total);
+		size_t processed = 0;
+		rc = machine_write_raw(obj, src + total, size - total, &processed);
+		total += processed;
 		if (rc > 0) {
 			total += rc;
 			continue;
