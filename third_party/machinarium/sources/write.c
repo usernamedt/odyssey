@@ -21,6 +21,13 @@ mm_write_start(mm_io_t *io, machine_cond_t *on_write)
 {
 	mm_machine_t *machine = mm_self;
 	io->on_write          = on_write;
+
+    /* Also check for data left in compression buffer, since this also won't
+     * generate any poller event. */
+    if (mm_compression_is_active(io) &&  mm_compression_write_pending(io)) {
+        mm_cond_signal((mm_cond_t *)io->on_write, &mm_self->scheduler);
+    }
+
 	int rc;
 	rc = mm_loop_write(&machine->loop, &io->handle, mm_write_cb, io);
 	if (rc == -1) {

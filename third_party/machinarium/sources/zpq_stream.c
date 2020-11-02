@@ -58,6 +58,11 @@ typedef struct
 	 * Returns amount of data in internal compression buffer.
 	 */
 	size_t (*buffered)(ZpqStream *zs);
+
+	/*
+	 * Returns amount of data in internal decompression buffer.
+	 */
+	size_t (*buffered_rx)(ZpqStream *zs);
 } ZpqAlgorithm;
 
 //#ifdef ZSTD_FOUND
@@ -75,9 +80,12 @@ typedef struct ZstdStream
 	ZSTD_DStream *rx_stream;
 	ZSTD_outBuffer tx;
 	ZSTD_inBuffer rx;
-	size_t tx_not_flushed; /* Amount of data in internal zstd buffer */
-	size_t
-	  tx_buffered; /* Data which is consumed by ztd_read but not yet sent */
+	/* Amount of data in internal zstd buffer (tx_stream) */
+	size_t tx_not_flushed;
+	/* Data which is consumed by zstd_write but not yet sent */
+	size_t tx_buffered;
+	/* Data which is received by zstd_read but not yet decompressed */
+	size_t rx_buffered;
 	zpq_tx_func tx_func;
 	zpq_rx_func rx_func;
 	void *arg;
@@ -107,6 +115,7 @@ zstd_create(zpq_tx_func tx_func, zpq_rx_func rx_func, void *arg)
 	zs->rx_func        = rx_func;
 	zs->tx_func        = tx_func;
 	zs->tx_buffered    = 0;
+	zs->rx_buffered    = 0;
 	zs->tx_not_flushed = 0;
 	zs->rx_error       = NULL;
 	zs->arg            = arg;
@@ -131,6 +140,7 @@ zstd_read(ZpqStream *zstream, void *buf, size_t size)
 			zs->rx_error = ZSTD_getErrorName(rc);
 			return ZPQ_DECOMPRESS_ERROR;
 		}
+		zs->rx_buffered = zs->rx.size - zs->rx.pos;
 		/* Return result if we fill requested amount of bytes or read operation
 		 * was performed */
 		if (out.pos != 0) {
@@ -147,7 +157,8 @@ zstd_read(ZpqStream *zstream, void *buf, size_t size)
 		{
 			zs->rx.size += rc;
 			zs->rx_total += rc;
-		} else /* read failed */
+            zs->rx_buffered += rc;
+        } else /* read failed */
 		{
 			return rc;
 		}
@@ -226,6 +237,13 @@ zstd_buffered(ZpqStream *zstream)
 	return zs != NULL ? zs->tx_buffered + zs->tx_not_flushed : 0;
 }
 
+static size_t
+zstd_buffered_rx(ZpqStream *zstream)
+{
+	ZstdStream *zs = (ZstdStream *)zstream;
+	return zs != NULL ? zs->rx_buffered : 0;
+}
+
 static char
 zstd_name(void)
 {
@@ -253,7 +271,10 @@ typedef struct ZlibStream
 	zpq_rx_func rx_func;
 	void *arg;
 
+	/* Data which is consumed by zlib_write but not yet sent */
 	size_t tx_buffered;
+	/* Data which is received by zlib_read but not yet decompressed */
+	size_t rx_buffered;
 
 	Bytef tx_buf[ZLIB_BUFFER_SIZE];
 	Bytef rx_buf[ZLIB_BUFFER_SIZE];
@@ -268,6 +289,7 @@ zlib_create(zpq_tx_func tx_func, zpq_rx_func rx_func, void *arg)
 	zs->tx.next_out  = zs->tx_buf;
 	zs->tx.avail_out = ZLIB_BUFFER_SIZE;
 	zs->tx_buffered  = 0;
+	zs->rx_buffered  = 0;
 	rc               = deflateInit(&zs->tx, ZLIB_COMPRESSION_LEVEL);
 	if (rc != Z_OK) {
 		free(zs);
@@ -307,7 +329,8 @@ zlib_read(ZpqStream *zstream, void *buf, size_t size)
 		if (zs->rx.avail_in != 0) /* If there is some data in receiver buffer,
 		                             then decompress it */
 		{
-			rc = inflate(&zs->rx, Z_SYNC_FLUSH);
+			rc              = inflate(&zs->rx, Z_SYNC_FLUSH);
+			zs->rx_buffered = zs->rx.avail_in;
 			if (rc != Z_OK && rc != Z_BUF_ERROR) {
 				// if there was some error, we should exit and return
 				// ZPQ_DECOMPRESS_ERROR
@@ -332,6 +355,7 @@ zlib_read(ZpqStream *zstream, void *buf, size_t size)
 		                   (zs->rx.next_in + zs->rx.avail_in));
 		if (rc > 0) {
 			zs->rx.avail_in += rc;
+			zs->rx_buffered = zs->rx.avail_in;
 		} else {
 			return rc;
 		}
@@ -403,6 +427,13 @@ zlib_buffered(ZpqStream *zstream)
 	return zs != NULL ? zs->tx_buffered : 0;
 }
 
+static size_t
+zlib_buffered_rx(ZpqStream *zstream)
+{
+	ZlibStream *zs = (ZlibStream *)zstream;
+	return zs != NULL ? zs->rx_buffered : 0;
+}
+
 static char
 zlib_name(void)
 {
@@ -415,24 +446,30 @@ zlib_name(void)
  * Array with all supported compression algorithms.
  */
 static ZpqAlgorithm const zpq_algorithms[] = {
-//#ifdef ZSTD_FOUND
-	{ zstd_name,
+	//#ifdef ZSTD_FOUND
+	{
+	  zstd_name,
 	  zstd_create,
 	  zstd_read,
 	  zstd_write,
 	  zstd_free,
 	  zstd_error,
-	  zstd_buffered },
-//#endif
-//#ifdef ZLIB_FOUND
-	{ zlib_name,
+	  zstd_buffered,
+	  zstd_buffered_rx,
+	},
+	//#endif
+	//#ifdef ZLIB_FOUND
+	{
+	  zlib_name,
 	  zlib_create,
 	  zlib_read,
 	  zlib_write,
 	  zlib_free,
 	  zlib_error,
-	  zlib_buffered },
-//#endif
+	  zlib_buffered,
+	  zlib_buffered_rx,
+	},
+	//#endif
 	{ NULL }
 };
 
@@ -504,6 +541,12 @@ size_t
 zpq_buffered(ZpqStream *zs)
 {
 	return zs ? zpq_algorithms[zs->zpq_algorithm_impl].buffered(zs) : 0;
+}
+
+size_t
+zpq_buffered_rx(ZpqStream *zs)
+{
+	return zs ? zpq_algorithms[zs->zpq_algorithm_impl].buffered_rx(zs) : 0;
 }
 
 /*

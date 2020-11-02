@@ -28,6 +28,8 @@ ssize_t zpq_read(ZpqStream* zs, void* buf, size_t size);
 ssize_t zpq_write(ZpqStream* zs, void const* buf, size_t size, size_t* processed);
 char const* zpq_error(ZpqStream* zs);
 size_t zpq_buffered(ZpqStream* zs);
+size_t zpq_buffered_rx(ZpqStream* zs);
+
 void zpq_free(ZpqStream* zs);
 
 void zpq_get_supported_algorithms(char algorithms[ZPQ_MAX_ALGORITHMS]);

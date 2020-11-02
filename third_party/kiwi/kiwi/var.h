@@ -206,7 +206,8 @@ kiwi_vars_cas(kiwi_vars_t *client,
 	for (; type < KIWI_VAR_MAX; type++) {
 		kiwi_var_t *var;
 		var = kiwi_vars_of(client, type);
-		if (var->type == KIWI_VAR_UNDEF)
+        // skip compression var
+        if (var->type == KIWI_VAR_UNDEF || var->type == KIWI_VAR_COMPRESSION)
 			continue;
 		kiwi_var_t *server_var;
 		server_var = kiwi_vars_of(server, type);

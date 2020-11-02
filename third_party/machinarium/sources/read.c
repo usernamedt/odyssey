@@ -29,6 +29,12 @@ mm_read_start(mm_io_t *io, machine_cond_t *on_read)
 	if (mm_tls_is_active(io) && mm_tls_read_pending(io))
 		mm_cond_signal((mm_cond_t *)io->on_read, &mm_self->scheduler);
 
+	/* Also check for buffered compressed data, since this also won't
+	 * generate any poller event. */
+	if (mm_compression_is_active(io) &&  mm_compression_read_pending(io)) {
+        mm_cond_signal((mm_cond_t *)io->on_read, &mm_self->scheduler);
+    }
+
 	int rc;
 	rc = mm_loop_read(&machine->loop, &io->handle, mm_read_cb, io);
 	if (rc == -1) {
