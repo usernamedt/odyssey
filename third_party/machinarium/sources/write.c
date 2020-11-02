@@ -182,7 +182,8 @@ machine_write(machine_io_t *obj, machine_msg_t *msg, uint32_t time_ms)
 	int total = 0;
 	char *src = machine_msg_data(msg);
 	int size  = machine_msg_size(msg);
-	while (total != size) {
+	/* If compression is on, also check that there is no data left in tx buffer */
+	while (total != size || zpq_buffered_tx(io->zpq_stream)) {
 		rc = machine_cond_wait((machine_cond_t *)&on_write, time_ms);
 		if (rc == -1) {
 			mm_write_stop(io);
