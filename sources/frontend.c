@@ -213,11 +213,14 @@ od_frontend_startup(od_client_t *client)
 				return -1;
 			}
 
-			/* todo initialize compression */
-			machine_set_compression(client->io.io,
-			                        (zpq_tx_func)machine_write_raw_old,
-			                        (zpq_rx_func)machine_read_raw_old,
-			                        compression_algorithm);
+            int impl = zpq_get_algorithm_impl(compression_algorithm);
+			if (impl >= 0) {
+                /* initialize compression */
+                machine_set_compression(client->io.io,
+                                        (zpq_tx_func)machine_write_raw_old,
+                                        (zpq_rx_func)machine_read_raw_old,
+                                        impl);
+			}
 		}
 		return 0;
 	}

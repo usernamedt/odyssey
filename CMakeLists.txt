@@ -93,17 +93,19 @@ if (PAM_FOUND)
 endif()
 
 # use zstd
-find_package(Zstd REQUIRED)
+find_package(Zstd)
 if(ZSTD_FOUND)
     include_directories(${ZSTD_INCLUDE_DIR})
     set(od_libraries ${od_libraries} ${ZSTD_LIBRARY})
+    add_definitions(-DHAVE_ZSTD)
 endif()
 
 # use zlib
-find_package(ZLIB REQUIRED)
+find_package(ZLIB)
 if(ZLIB_FOUND)
     include_directories(${ZLIB_INCLUDE_DIRS})
     set(od_libraries ${od_libraries} ${ZLIB_LIBRARIES})
+    add_definitions(-DHAVE_ZLIB)
 endif()
 
 # machinarium

@@ -37,6 +37,22 @@ if (BUILD_VALGRIND)
     endif()
 endif()
 
+# use zstd
+find_package(Zstd)
+if(ZSTD_FOUND)
+    include_directories(${ZSTD_INCLUDE_DIR})
+    set(mm_libraries ${mm_libraries} ${ZSTD_LIBRARY})
+    add_definitions(-DHAVE_ZSTD)
+endif()
+
+# use zlib
+find_package(ZLIB)
+if(ZLIB_FOUND)
+    include_directories(${ZLIB_INCLUDE_DIRS})
+    set(mm_libraries ${mm_libraries} ${ZLIB_LIBRARIES})
+    add_definitions(-DHAVE_ZLIB)
+endif()
+
 # use BoringSSL or OpenSSL
 option(USE_BORINGSSL "Use BoringSSL" OFF)
 if (USE_BORINGSSL)

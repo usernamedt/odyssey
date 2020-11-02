@@ -172,14 +172,14 @@ machine_set_tls(machine_io_t *obj, machine_tls_t *tls, uint32_t timeout)
 }
 
 MACHINE_API int
-machine_set_compression(machine_io_t *obj, zpq_tx_func tx_func, zpq_rx_func rx_func, char compression_algorithm)
+machine_set_compression(machine_io_t *obj, zpq_tx_func tx_func, zpq_rx_func rx_func, int impl)
 {
     mm_io_t *io = mm_cast(mm_io_t *, obj);
     if (io->zpq_stream) {
         mm_errno_set(EINPROGRESS);
         return -1;
     }
-    io->zpq_stream = zpq_create(tx_func, rx_func, obj, compression_algorithm);
+    io->zpq_stream = zpq_create(impl, tx_func, rx_func, obj, NULL, 0);
     return 0;
 }
 

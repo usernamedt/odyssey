@@ -199,7 +199,7 @@ extern "C"
 	                                      int usr_timeout);
 
 	MACHINE_API int machine_set_tls(machine_io_t *, machine_tls_t *, uint32_t);
-    MACHINE_API int machine_set_compression(machine_io_t *, zpq_tx_func tx_func, zpq_rx_func rx_func, char compression_algorithm);
+    MACHINE_API int machine_set_compression(machine_io_t *, zpq_tx_func tx_func, zpq_rx_func rx_func, int compression_algorithm);
 
 MACHINE_API int machine_io_verify(machine_io_t *, char *common_name);
 

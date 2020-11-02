@@ -30,5 +30,5 @@ mm_compression_read_pending(mm_io_t *io)
 int
 mm_compression_write_pending(mm_io_t *io)
 {
-    return zpq_buffered(io->zpq_stream);
+    return zpq_buffered_tx(io->zpq_stream);
 }
