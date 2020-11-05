@@ -93,6 +93,7 @@
 #include "io.h"
 #include "tls.h"
 #include "compression.h"
+#include "zpq_stream.h"
 
 #include "lrand48.h"
 

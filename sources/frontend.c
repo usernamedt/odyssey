@@ -15,7 +15,6 @@
 #include <machinarium.h>
 #include <kiwi.h>
 #include <odyssey.h>
-#include <zpq_stream.h>
 
 static inline void
 od_frontend_close(od_client_t *client)
@@ -164,40 +163,14 @@ od_frontend_startup(od_client_t *client)
 		  kiwi_vars_get(&client->vars, KIWI_VAR_COMPRESSION);
 
 		if (compression_var != NULL) {
-			/*
-			 * If client request compression, it sends list of supported
-			 * compression algorithms. Each compression algorirthm is idetified
-			 * by one letter ('f' - Facebook zsts, 'z' - xlib)
-			 */
 
-			// odyssey supported compression algos
-			char server_compression_algorithms[ZPQ_MAX_ALGORITHMS];
+            // client compression algos
+            char *client_compression_algorithms = compression_var->value;
 
-			// chosen compression algo
-			char compression_algorithm = ZPQ_NO_COMPRESSION;
-			// char compression[6] = {'z',0,0,0,5,0}; /* message length = 5 */
-			// int rc;
+			char compression_algorithm = machine_compression_choose_alg(client_compression_algorithms);
 
-			/* Get list of compression algorithms, supported by server */
-			zpq_get_supported_algorithms(server_compression_algorithms);
-
-			// client compression algos
-			char *client_compression_algorithms = compression_var->value;
-
-			/* Intersect lists */
-			while (*client_compression_algorithms != '\0') {
-				if (strchr(server_compression_algorithms,
-				           *client_compression_algorithms)) {
-					compression_algorithm = *client_compression_algorithms;
-					break;
-				}
-				client_compression_algorithms += 1;
-			}
-
-			// compression[5] = compression_algorithm;
 			/* Send 'z' message to the client with selectde comression algorithm
 			 * ('n' if match is ont found) */
-			// socket_set_nonblocking(false);
 
 			msg = kiwi_be_write_compression_ack(NULL, compression_algorithm);
 			if (msg == NULL)
@@ -213,13 +186,17 @@ od_frontend_startup(od_client_t *client)
 				return -1;
 			}
 
-            int impl = zpq_get_algorithm_impl(compression_algorithm);
-			if (impl >= 0) {
-                /* initialize compression */
-                machine_set_compression(client->io.io,
+            /* initialize compression */
+            rc = machine_set_compression(client->io.io,
                                         (zpq_tx_func)machine_write_raw_old,
                                         (zpq_rx_func)machine_read_raw_old,
-                                        impl);
+                                        compression_algorithm);
+            if (rc == -1) {
+                od_debug(&instance->logger,
+                         "unsupported compression algorithm",
+                         client,
+                         NULL,
+                         "ignoring");
 			}
 		}
 		return 0;

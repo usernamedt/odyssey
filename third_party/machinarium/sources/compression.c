@@ -32,3 +32,34 @@ mm_compression_write_pending(mm_io_t *io)
 {
     return zpq_buffered_tx(io->zpq_stream);
 }
+
+MACHINE_API
+char machine_compression_choose_alg(char *client_compression_algorithms) {
+    /*
+     * If client request compression, it sends list of supported
+     * compression algorithms. Each compression algorirthm is idetified
+     * by one letter ('f' - Facebook zsts, 'z' - xlib)
+     */
+
+    // odyssey supported compression algos
+    char server_compression_algorithms[ZPQ_MAX_ALGORITHMS];
+
+    // chosen compression algo
+    char compression_algorithm = ZPQ_NO_COMPRESSION;
+    // char compression[6] = {'z',0,0,0,5,0}; /* message length = 5 */
+    // int rc;
+
+    /* Get list of compression algorithms, supported by server */
+    zpq_get_supported_algorithms(server_compression_algorithms);
+
+    /* Intersect lists */
+    while (*client_compression_algorithms != '\0') {
+        if (strchr(server_compression_algorithms,
+                   *client_compression_algorithms)) {
+            compression_algorithm = *client_compression_algorithms;
+            break;
+        }
+        client_compression_algorithms += 1;
+    }
+	return compression_algorithm;
+}
