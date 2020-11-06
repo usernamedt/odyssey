@@ -209,7 +209,8 @@ machine_io_free(machine_io_t *obj)
 	mm_io_t *io = mm_cast(mm_io_t *, obj);
 	mm_errno_set(0);
 	mm_tls_free(io);
-	free(io);
+    mm_compression_free(io);
+    free(io);
 }
 
 MACHINE_API char *

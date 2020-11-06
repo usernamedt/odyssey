@@ -5,6 +5,9 @@
 #ifndef MM_COMPRESSION_H
 #define MM_COMPRESSION_H
 
+void
+mm_compression_free(mm_io_t *io);
+
 static inline int
 mm_compression_is_active(mm_io_t *io)
 {

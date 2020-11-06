@@ -4,6 +4,13 @@
 #include <machinarium.h>
 #include <machinarium_private.h>
 
+void
+mm_compression_free(mm_io_t *io)
+{
+    if (io->zpq_stream)
+        zpq_free(io->zpq_stream);
+}
+
 int
 mm_compression_writev(mm_io_t *io, struct iovec *iov, int n, size_t *processed)
 {
