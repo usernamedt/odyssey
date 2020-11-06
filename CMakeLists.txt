@@ -141,6 +141,7 @@ message(STATUS "OPENSSL_ROOT_DIR:       ${OPENSSL_ROOT_DIR}")
 message(STATUS "OPENSSL_INCLUDE_DIR:    ${OPENSSL_INCLUDE_DIR}")
 message(STATUS "PAM_LIBRARY:            ${PAM_LIBRARY}")
 message(STATUS "PAM_INCLUDE_DIR:        ${PAM_INCLUDE_DIR}")
+message(STATUS "ODLIBS:			${od_libraries}")
 message(STATUS "")
 
 add_subdirectory(sources)
