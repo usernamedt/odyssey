@@ -47,14 +47,14 @@ typedef struct
     char const* (*error)(ZpqStream *zs);
 
     /*
-     * Returns amount of data in internal compression buffer.
+     * Returns amount of data in internal tx decompression buffer.
      */
     size_t  (*buffered_tx)(ZpqStream *zs);
 
     /*
-     * Returns amount of data in internal decompression buffer.
+     * Returns amount of data in internal rx compression buffer.
      */
-    size_t (*buffered_rx)(ZpqStream *zs);
+    size_t  (*buffered_rx)(ZpqStream *zs);
 } ZpqAlgorithm;
 
 struct ZpqStream
@@ -72,184 +72,187 @@ struct ZpqStream
 
 typedef struct ZstdStream
 {
-    ZpqStream      common;
-    ZSTD_CStream*  tx_stream;
-    ZSTD_DStream*  rx_stream;
-    ZSTD_outBuffer tx;
-    ZSTD_inBuffer  rx;
-    size_t         tx_not_flushed; /* Amount of data in internal zstd buffer */
-    size_t         tx_buffered; /* Data which is consumed by zstd_write but not yet sent */
-    size_t         rx_buffered;	/* Data which is received by zstd_read but not yet decompressed */
-    zpq_tx_func    tx_func;
-    zpq_rx_func    rx_func;
-    void*          arg;
-    char const*    rx_error;    /* Decompress error message */
-    size_t         tx_total;
-    size_t         tx_total_raw;
-    size_t         rx_total;
-    size_t         rx_total_raw;
-    char           tx_buf[ZSTD_BUFFER_SIZE];
-    char           rx_buf[ZSTD_BUFFER_SIZE];
+	ZpqStream      common;
+	ZSTD_CStream*  tx_stream;
+	ZSTD_DStream*  rx_stream;
+	ZSTD_outBuffer tx;
+	ZSTD_inBuffer  rx;
+	size_t         tx_not_flushed; /* Amount of data in internal zstd buffer */
+	size_t         tx_buffered;    /* Data which is consumed by ztd_write but not yet sent */
+	size_t         rx_buffered;    /* Data which is needed for ztd_read */
+	zpq_tx_func    tx_func;
+	zpq_rx_func    rx_func;
+	void*          arg;
+	char const*    rx_error;    /* Decompress error message */
+	size_t         tx_total;
+	size_t         tx_total_raw;
+	size_t         rx_total;
+	size_t         rx_total_raw;
+	char           tx_buf[ZSTD_BUFFER_SIZE];
+	char           rx_buf[ZSTD_BUFFER_SIZE];
 } ZstdStream;
 
 static ZpqStream*
 zstd_create(zpq_tx_func tx_func, zpq_rx_func rx_func, void *arg, char* rx_data, size_t rx_data_size)
 {
-    ZstdStream* zs = (ZstdStream*)malloc(sizeof(ZstdStream));
+	ZstdStream* zs = (ZstdStream*)malloc(sizeof(ZstdStream));
 
-    zs->tx_stream = ZSTD_createCStream();
-    ZSTD_initCStream(zs->tx_stream, ZSTD_COMPRESSION_LEVEL);
-    zs->rx_stream = ZSTD_createDStream();
-    ZSTD_initDStream(zs->rx_stream);
-    zs->tx.dst = zs->tx_buf;
-    zs->tx.pos = 0;
-    zs->tx.size = ZSTD_BUFFER_SIZE;
-    zs->rx.src = zs->rx_buf;
-    zs->rx.pos = 0;
-    zs->rx.size = 0;
-    zs->rx_func = rx_func;
-    zs->tx_func = tx_func;
-    zs->tx_buffered = 0;
-    zs->tx_not_flushed = 0;
-    zs->rx_error = NULL;
-    zs->arg = arg;
-    zs->tx_total = zs->tx_total_raw = 0;
-    zs->rx_total = zs->rx_total_raw = 0;
+	zs->tx_stream = ZSTD_createCStream();
+	ZSTD_initCStream(zs->tx_stream, ZSTD_COMPRESSION_LEVEL);
+	zs->rx_stream = ZSTD_createDStream();
+	ZSTD_initDStream(zs->rx_stream);
+	zs->tx.dst = zs->tx_buf;
+	zs->tx.pos = 0;
+	zs->tx.size = ZSTD_BUFFER_SIZE;
+	zs->rx.src = zs->rx_buf;
+	zs->rx.pos = 0;
+	zs->rx.size = 0;
+	zs->rx_func = rx_func;
+	zs->tx_func = tx_func;
+	zs->tx_buffered = 0;
+	zs->rx_buffered = 0;
+	zs->tx_not_flushed = 0;
+	zs->rx_error = NULL;
+	zs->arg = arg;
+	zs->tx_total = zs->tx_total_raw = 0;
+	zs->rx_total = zs->rx_total_raw = 0;
+	zs->rx.size = rx_data_size;
+	assert(rx_data_size < ZSTD_BUFFER_SIZE);
+	memcpy(zs->rx_buf, rx_data, rx_data_size);
 
-    zs->rx.size = rx_data_size;
-    zs->rx_buffered = rx_data_size;
-    assert(rx_data_size < ZSTD_BUFFER_SIZE);
-    memcpy(zs->rx_buf, rx_data, rx_data_size);
-
-    return (ZpqStream*)zs;
+	return (ZpqStream*)zs;
 }
 
 static ssize_t
 zstd_read(ZpqStream *zstream, void *buf, size_t size)
 {
-    ZstdStream* zs = (ZstdStream*)zstream;
-    ssize_t rc;
-    ZSTD_outBuffer out;
-    out.dst = buf;
-    out.pos = 0;
-    out.size = size;
+	ZstdStream* zs = (ZstdStream*)zstream;
+	ssize_t rc;
+	ZSTD_outBuffer out;
+	out.dst = buf;
+	out.pos = 0;
+	out.size = size;
 
-    while (1)
-    {
-        rc = ZSTD_decompressStream(zs->rx_stream, &out, &zs->rx);
-        if (ZSTD_isError(rc))
-        {
-            zs->rx_error = ZSTD_getErrorName(rc);
-            return ZPQ_DECOMPRESS_ERROR;
-        }
-        zs->rx_buffered = zs->rx.size - zs->rx.pos;
-        /* Return result if we fill requested amount of bytes or read operation was performed */
-        if (out.pos != 0)
-        {
-            zs->rx_total_raw += out.pos;
-            return out.pos;
-        }
-        if (zs->rx.pos == zs->rx.size)
-        {
-            zs->rx.pos = zs->rx.size = 0; /* Reset rx buffer */
-        }
-        rc = zs->rx_func(zs->arg, (char*)zs->rx.src + zs->rx.size, ZSTD_BUFFER_SIZE - zs->rx.size);
-        if (rc > 0) /* read fetches some data */
-        {
-            zs->rx.size += rc;
-            zs->rx_total += rc;
-            zs->rx_buffered += rc;
-        }
-        else /* read failed */
-        {
-            zs->rx_total_raw += out.pos;
-            return rc;
-        }
-    }
+	while (1)
+	{
+		if (zs->rx.pos != zs->rx.size || zs->rx_buffered == 0)
+		{
+			rc = ZSTD_decompressStream(zs->rx_stream, &out, &zs->rx);
+			if (ZSTD_isError(rc))
+			{
+				zs->rx_error = ZSTD_getErrorName(rc);
+				return ZPQ_DECOMPRESS_ERROR;
+			}
+			/* Return result if we fill requested amount of bytes or read operation was performed */
+			if (out.pos != 0)
+			{
+				zs->rx_total_raw += out.pos;
+				zs->rx_buffered = 0;
+				return out.pos;
+			}
+			zs->rx_buffered = rc;
+			if (zs->rx.pos == zs->rx.size)
+			{
+				zs->rx.pos = zs->rx.size = 0; /* Reset rx buffer */
+			}
+		}
+		rc = zs->rx_func(zs->arg, (char*)zs->rx.src + zs->rx.size, ZSTD_BUFFER_SIZE - zs->rx.size);
+		if (rc > 0) /* read fetches some data */
+		{
+			zs->rx.size += rc;
+			zs->rx_total += rc;
+		}
+		else /* read failed */
+		{
+			zs->rx_total_raw += out.pos;
+			return rc;
+		}
+	}
 }
 
 static ssize_t
 zstd_write(ZpqStream *zstream, void const *buf, size_t size, size_t *processed)
 {
-    ZstdStream* zs = (ZstdStream*)zstream;
-    ssize_t rc;
-    ZSTD_inBuffer in_buf;
-    in_buf.src = buf;
-    in_buf.pos = 0;
-    in_buf.size = size;
+	ZstdStream* zs = (ZstdStream*)zstream;
+	ssize_t rc;
+	ZSTD_inBuffer in_buf;
+	in_buf.src = buf;
+	in_buf.pos = 0;
+	in_buf.size = size;
 
-    do
-    {
-        if (zs->tx.pos == 0) /* Compress buffer is empty */
-        {
-            zs->tx.dst = zs->tx_buf; /* Reset pointer to the beginning of buffer */
+	do
+	{
+		if (zs->tx.pos == 0) /* Compress buffer is empty */
+		{
+			zs->tx.dst = zs->tx_buf; /* Reset pointer to the beginning of buffer */
 
-            if (in_buf.pos < size) /* Has something to compress in input buffer */
-                ZSTD_compressStream(zs->tx_stream, &zs->tx, &in_buf);
+			if (in_buf.pos < size) /* Has something to compress in input buffer */
+				ZSTD_compressStream(zs->tx_stream, &zs->tx, &in_buf);
 
-            if (in_buf.pos == size) /* All data is compressed: flushed internal zstd buffer */
-            {
-                zs->tx_not_flushed = ZSTD_flushStream(zs->tx_stream, &zs->tx);
-            }
-        }
-        rc = zs->tx_func(zs->arg, zs->tx.dst, zs->tx.pos);
-        if (rc > 0)
-        {
-            zs->tx.pos -= rc;
-            zs->tx.dst = (char*)zs->tx.dst + rc;
-            zs->tx_total += rc;
-        }
-        else
-        {
-            *processed = in_buf.pos;
-            zs->tx_buffered = zs->tx.pos;
-            zs->tx_total_raw += in_buf.pos;
-            return rc;
-        }
-    } while (zs->tx.pos == 0 && (in_buf.pos < size || zs->tx_not_flushed)); /* repeat sending data until first partial write */
+			if (in_buf.pos == size) /* All data is compressed: flushed internal zstd buffer */
+			{
+				zs->tx_not_flushed = ZSTD_flushStream(zs->tx_stream, &zs->tx);
+			}
+		}
+		rc = zs->tx_func(zs->arg, zs->tx.dst, zs->tx.pos);
+		if (rc > 0)
+		{
+			zs->tx.pos -= rc;
+			zs->tx.dst = (char*)zs->tx.dst + rc;
+			zs->tx_total += rc;
+		}
+		else
+		{
+			*processed = in_buf.pos;
+			zs->tx_buffered = zs->tx.pos;
+			zs->tx_total_raw += in_buf.pos;
+			return rc;
+		}
+    /* repeat sending while there is some data in input or internal zstd buffer */
+    } while (in_buf.pos < size || zs->tx_not_flushed);
 
-    zs->tx_total_raw += in_buf.pos;
-    zs->tx_buffered = zs->tx.pos;
-    return in_buf.pos;
+	zs->tx_total_raw += in_buf.pos;
+	zs->tx_buffered = zs->tx.pos;
+	return in_buf.pos;
 }
 
 static void
 zstd_free(ZpqStream *zstream)
 {
-    ZstdStream* zs = (ZstdStream*)zstream;
-    if (zs != NULL)
-    {
-        ZSTD_freeCStream(zs->tx_stream);
-        ZSTD_freeDStream(zs->rx_stream);
-        free(zs);
-    }
+	ZstdStream* zs = (ZstdStream*)zstream;
+	if (zs != NULL)
+	{
+		ZSTD_freeCStream(zs->tx_stream);
+		ZSTD_freeDStream(zs->rx_stream);
+		free(zs);
+	}
 }
 
 static char const*
 zstd_error(ZpqStream *zstream)
 {
-    ZstdStream* zs = (ZstdStream*)zstream;
-    return zs->rx_error;
+	ZstdStream* zs = (ZstdStream*)zstream;
+	return zs->rx_error;
 }
 
 static size_t
 zstd_buffered_tx(ZpqStream *zstream)
 {
-    ZstdStream* zs = (ZstdStream*)zstream;
-    return zs != NULL ? zs->tx_buffered + zs->tx_not_flushed : 0;
+	ZstdStream* zs = (ZstdStream*)zstream;
+	return zs != NULL ? zs->tx_buffered + zs->tx_not_flushed : 0;
 }
 
 static size_t
 zstd_buffered_rx(ZpqStream *zstream)
 {
-    ZstdStream *zs = (ZstdStream *)zstream;
-    return zs != NULL ? zs->rx_buffered : 0;
+	ZstdStream* zs = (ZstdStream*)zstream;
+	return zs != NULL ? zs->rx.size - zs->rx.pos : 0;
 }
 
 static char
 zstd_name(void)
 {
-    return 'f';
+	return 'f';
 }
 
 #endif
@@ -279,7 +282,7 @@ typedef struct ZlibStream
     zpq_tx_func    tx_func;
     zpq_rx_func    rx_func;
     void*          arg;
-
+    unsigned       tx_deflate_pending;
     size_t         tx_buffered;
 
     Bytef          tx_buf[ZLIB_BUFFER_SIZE];
@@ -306,6 +309,7 @@ zlib_create(zpq_tx_func tx_func, zpq_rx_func rx_func, void *arg, char* rx_data, 
     memset(&zs->rx, 0, sizeof(zs->tx));
     zs->rx.next_in = zs->rx_buf;
     zs->rx.avail_in = ZLIB_BUFFER_SIZE;
+    zs->tx_deflate_pending = 0;
     rc = inflateInit(&zs->rx);
     if (rc != Z_OK)
     {
@@ -380,10 +384,11 @@ zlib_write(ZpqStream *zstream, void const *buf, size_t size, size_t *processed)
         {
             zs->tx.next_out = zs->tx_buf; /* Reset pointer to the  beginning of buffer */
 
-            if (zs->tx.avail_in != 0) /* Has something in input buffer */
+            if (zs->tx.avail_in != 0 || (zs->tx_deflate_pending > 0)) /* Has something in input or deflate buffer */
             {
                 rc = deflate(&zs->tx, Z_SYNC_FLUSH);
                 assert(rc == Z_OK);
+                deflatePending(&zs->tx, &zs->tx_deflate_pending, Z_NULL); /* check if any data left in deflate buffer */
                 zs->tx.next_out = zs->tx_buf; /* Reset pointer to the  beginning of buffer */
             }
         }
@@ -399,7 +404,8 @@ zlib_write(ZpqStream *zstream, void const *buf, size_t size, size_t *processed)
             zs->tx_buffered = ZLIB_BUFFER_SIZE - zs->tx.avail_out;
             return rc;
         }
-    } while (zs->tx.avail_out == ZLIB_BUFFER_SIZE && zs->tx.avail_in != 0); /* repeat sending data until first partial write */
+        /* repeat sending while there is some data in input or deflate buffer */
+    } while (zs->tx.avail_in != 0 || zs->tx_deflate_pending > 0);
 
     zs->tx_buffered = ZLIB_BUFFER_SIZE - zs->tx.avail_out;
 
@@ -429,13 +435,13 @@ static size_t
 zlib_buffered_tx(ZpqStream *zstream)
 {
     ZlibStream* zs = (ZlibStream*)zstream;
-    return zs != NULL ? zs->tx_buffered : 0;
+    return zs != NULL ? zs->tx_buffered + zs->tx_deflate_pending : 0;
 }
 
 static size_t
 zlib_buffered_rx(ZpqStream *zstream)
 {
-    ZlibStream *zs = (ZlibStream *)zstream;
+    ZlibStream* zs = (ZlibStream*)zstream;
     return zs != NULL ? zs->rx.avail_in : 0;
 }
 
@@ -453,7 +459,7 @@ zlib_name(void)
 static ZpqAlgorithm const zpq_algorithms[] =
   {
 #ifdef HAVE_ZSTD
-	{zstd_name, zstd_create, zstd_read, zstd_write, zstd_free, zstd_error, zstd_buffered_tx, zstd_buffered_rx},
+    {zstd_name, zstd_create, zstd_read, zstd_write, zstd_free, zstd_error, zstd_buffered_tx, zstd_buffered_rx},
 #endif
 #ifdef HAVE_ZLIB
     {zlib_name, zlib_create, zlib_read, zlib_write, zlib_free, zlib_error, zlib_buffered_tx, zlib_buffered_rx},
@@ -500,15 +506,15 @@ zpq_error(ZpqStream *zs)
 
 
 size_t
-zpq_buffered_tx(ZpqStream *zs)
-{
-    return zs ? zs->algorithm->buffered_tx(zs) : 0;
-}
-
-size_t
 zpq_buffered_rx(ZpqStream *zs)
 {
     return zs ? zs->algorithm->buffered_rx(zs) : 0;
+}
+
+size_t
+zpq_buffered_tx(ZpqStream *zs)
+{
+    return zs ? zs->algorithm->buffered_tx(zs) : 0;
 }
 
 /*
