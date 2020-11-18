@@ -162,6 +162,7 @@ od_frontend_startup(od_client_t *client)
         rc = od_compression_frontend_setup(client, &instance->logger);
 		if (rc == -1)
 			return -1;
+		return 0;
 	}
 
 	/* read startup-cancel message followed after ssl
