@@ -804,11 +804,7 @@ od_frontend_remote(od_client_t *client)
 
 		if (server == NULL)
 			continue;
-        printf("SR::B\n");
-        fflush(stdout);
 		status = od_relay_step(&server->relay);
-        printf("SR::E\n");
-        fflush(stdout);
 		if (status == OD_DETACH) {
 			/* write any pending data to server first */
 			od_frontend_status_t flush_status;
