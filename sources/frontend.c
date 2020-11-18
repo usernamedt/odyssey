@@ -159,47 +159,9 @@ od_frontend_startup(od_client_t *client)
 		return -1;
 
 	if (!client->startup.is_ssl_request) {
-		kiwi_var_t *compression_var =
-		  kiwi_vars_get(&client->vars, KIWI_VAR_COMPRESSION);
-
-		if (compression_var != NULL) {
-
-            // client compression algos
-            char *client_compression_algorithms = compression_var->value;
-
-			char compression_algorithm = machine_compression_choose_alg(client_compression_algorithms);
-
-			/* Send 'z' message to the client with selectde comression algorithm
-			 * ('n' if match is ont found) */
-
-			msg = kiwi_be_write_compression_ack(NULL, compression_algorithm);
-			if (msg == NULL)
-				return -1;
-			rc = od_write(&client->io, msg);
-			if (rc == -1) {
-				od_error(&instance->logger,
-				         "compression",
-				         client,
-				         NULL,
-				         "write error: %s",
-				         od_io_error(&client->io));
-				return -1;
-			}
-
-            /* initialize compression */
-            rc = machine_set_compression(client->io.io,
-                                        (zpq_tx_func)machine_write_raw_old,
-                                        (zpq_rx_func)machine_read_raw_old,
-                                        compression_algorithm);
-            if (rc == -1) {
-                od_debug(&instance->logger,
-                         "unsupported compression algorithm",
-                         client,
-                         NULL,
-                         "ignoring");
-			}
-		}
-		return 0;
+        rc = od_compression_frontend_setup(client, &instance->logger);
+		if (rc == -1)
+			return -1;
 	}
 
 	/* read startup-cancel message followed after ssl
@@ -217,12 +179,9 @@ od_frontend_startup(od_client_t *client)
 	if (rc == -1)
 		goto error;
 
-	kiwi_var_t *compression_var =
-	  kiwi_vars_get(&client->vars, KIWI_VAR_COMPRESSION);
-
-	if (compression_var != NULL) {
-		// todo init compression w/ SSL enabled
-	}
+    rc = od_compression_frontend_setup(client, &instance->logger);
+    if (rc == -1)
+        return -1;
 
 	return 0;
 
@@ -796,8 +755,9 @@ od_frontend_remote(od_client_t *client)
 		 * mode during normal work and set the timeout to the client
 		 * in 1 minute to perform actions in the shutdown mode  */
 		while (1) {
-			if (machine_cond_wait(client->cond, 60000) == 0) {
-				break;
+            //machine_read_active(client->io.io);
+            if (machine_cond_wait(client->cond, 10000) == 0) {
+                break;
 			}
 			if (instance->shutdown_worker_id != -1) {
 				status = OD_ECLIENT_READ;
@@ -815,7 +775,11 @@ od_frontend_remote(od_client_t *client)
 
 		server = client->server;
 		/* attach */
+        printf("CR::B\n");
+        fflush(stdout);
 		status = od_relay_step(&client->relay);
+        printf("CR::E\n");
+        fflush(stdout);
 		if (status == OD_ATTACH) {
 			assert(server == NULL);
 			status = od_frontend_attach_and_deploy(client, "main");
@@ -843,8 +807,11 @@ od_frontend_remote(od_client_t *client)
 
 		if (server == NULL)
 			continue;
-
+        printf("SR::B\n");
+        fflush(stdout);
 		status = od_relay_step(&server->relay);
+        printf("SR::E\n");
+        fflush(stdout);
 		if (status == OD_DETACH) {
 			/* write any pending data to server first */
 			od_frontend_status_t flush_status;
