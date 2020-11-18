@@ -776,11 +776,7 @@ od_frontend_remote(od_client_t *client)
 
 		server = client->server;
 		/* attach */
-        printf("CR::B\n");
-        fflush(stdout);
 		status = od_relay_step(&client->relay);
-        printf("CR::E\n");
-        fflush(stdout);
 		if (status == OD_ATTACH) {
 			assert(server == NULL);
 			status = od_frontend_attach_and_deploy(client, "main");
