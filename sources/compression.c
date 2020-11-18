@@ -48,7 +48,6 @@ od_compression_frontend_setup(od_client_t *client,
                  od_io_error(&client->io));
         return -1;
     }
-	machine_msg_free(msg);
 
     /* initialize compression */
     rc = machine_set_compression(client->io.io,
