@@ -82,6 +82,7 @@ typedef struct ZstdStream
 	size_t         tx_not_flushed; /* Amount of data in internal zstd buffer */
 	size_t         tx_buffered;    /* Data which is consumed by ztd_write but not yet sent */
 	size_t         rx_buffered;    /* Data which is needed for ztd_read */
+    size_t         is_deferred_rx_call;
 	zpq_tx_func    tx_func;
 	zpq_rx_func    rx_func;
 	void*          arg;
@@ -119,6 +120,7 @@ zstd_create(zpq_tx_func tx_func, zpq_rx_func rx_func, void *arg, char* rx_data, 
 	zs->tx_total = zs->tx_total_raw = 0;
 	zs->rx_total = zs->rx_total_raw = 0;
 	zs->rx.size = rx_data_size;
+	zs->is_deferred_rx_call = 0;
 	assert(rx_data_size < ZSTD_BUFFER_SIZE);
 	memcpy(zs->rx_buf, rx_data, rx_data_size);
 
@@ -134,6 +136,7 @@ zstd_read(ZpqStream *zstream, void *buf, size_t size)
 	out.dst = buf;
 	out.pos = 0;
 	out.size = size;
+    zs->is_deferred_rx_call = 1;
 
 	while (1)
 	{
@@ -154,7 +157,7 @@ zstd_read(ZpqStream *zstream, void *buf, size_t size)
 			{
 				zs->rx_total_raw += out.pos;
 				zs->rx_buffered = 0;
-                printf("[zstd_read READ_FAIL rx.pos=%zu rx.size=%zu rx_buffered=%zu]\n", zs->rx.pos,zs->rx.size, zs->rx_buffered);
+                printf("[zstd_read RETURN_SOME rx.pos=%zu rx.size=%zu rx_buffered=%zu ]\n", zs->rx.pos,zs->rx.size, zs->rx_buffered);
                 fflush(stdout);
 				return out.pos;
 			}
@@ -165,6 +168,7 @@ zstd_read(ZpqStream *zstream, void *buf, size_t size)
 			}
 		}
 		rc = zs->rx_func(zs->arg, (char*)zs->rx.src + zs->rx.size, ZSTD_BUFFER_SIZE - zs->rx.size);
+        zs->is_deferred_rx_call = 0;
         printf("[zstd_read RX_FUNC rc=%zu rx.pos=%zu rx.size=%zu rx_buffered=%zu]\n", rc, zs->rx.pos,zs->rx.size, zs->rx_buffered);
         fflush(stdout);
 		if (rc > 0) /* read fetches some data */
@@ -258,7 +262,7 @@ static size_t
 zstd_buffered_rx(ZpqStream *zstream)
 {
 	ZstdStream* zs = (ZstdStream*)zstream;
-	return zs != NULL ? zs->rx.size - zs->rx.pos : 0;
+	return zs != NULL ? (zs->rx.size - zs->rx.pos) + zs->is_deferred_rx_call  : 0;
 }
 
 static char
