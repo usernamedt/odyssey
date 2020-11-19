@@ -61,4 +61,4 @@ if(THREADS_HAVE_PTHREAD_ARG)
 endif()
 
 target_link_libraries(${od_binary} ${od_libraries} ${CMAKE_THREAD_LIBS_INIT} m)
-target_link_libraries(${od_binary} /usr/lib/x86_64-linux-gnu/libzstd.a;/usr/lib/x86_64-linux-gnu/libz.a)
+target_link_libraries(${od_binary} ${compression_libraries})

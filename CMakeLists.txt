@@ -57,6 +57,8 @@ find_package(Threads REQUIRED)
 
 add_custom_target(build_libs)
 set(od_libraries "rt")
+set(compression_libraries "")
+
 
 # debian build
 option(BUILD_DEBIAN "Enable Debian Build" OFF)
@@ -96,7 +98,7 @@ endif()
 find_package(Zstd)
 if(ZSTD_FOUND)
     include_directories(${ZSTD_INCLUDE_DIR})
-    set(od_libraries ${od_libraries} ${ZSTD_LIBRARY})
+    set(compression_libraries ${compression_libraries} ${ZSTD_LIBRARY})
     add_definitions(-DHAVE_ZSTD)
 endif()
 
@@ -104,7 +106,7 @@ endif()
 find_package(ZLIB)
 if(ZLIB_FOUND)
     include_directories(${ZLIB_INCLUDE_DIRS})
-    set(od_libraries ${od_libraries} ${ZLIB_LIBRARIES})
+    set(compression_libraries ${compression_libraries} ${ZLIB_LIBRARIES})
     add_definitions(-DHAVE_ZLIB)
 endif()
 
@@ -141,7 +143,6 @@ message(STATUS "OPENSSL_ROOT_DIR:       ${OPENSSL_ROOT_DIR}")
 message(STATUS "OPENSSL_INCLUDE_DIR:    ${OPENSSL_INCLUDE_DIR}")
 message(STATUS "PAM_LIBRARY:            ${PAM_LIBRARY}")
 message(STATUS "PAM_INCLUDE_DIR:        ${PAM_INCLUDE_DIR}")
-message(STATUS "ODLIBS:			${od_libraries}")
 message(STATUS "")
 
 add_subdirectory(sources)

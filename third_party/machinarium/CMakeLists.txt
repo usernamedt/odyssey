@@ -25,6 +25,7 @@ option(BUILD_SHARED "Enable SHARED" OFF)
 option(BUILD_VALGRIND "Enable VALGRIND" ON)
 
 set(mm_libraries "")
+set(compression_libraries "")
 
 # valgrind
 if (BUILD_VALGRIND)
@@ -41,7 +42,7 @@ endif()
 find_package(Zstd)
 if(ZSTD_FOUND)
     include_directories(${ZSTD_INCLUDE_DIR})
-    set(mm_libraries ${mm_libraries} ${ZSTD_LIBRARY})
+    set(compression_libraries ${compression_libraries} ${ZSTD_LIBRARY})
     add_definitions(-DHAVE_ZSTD)
 endif()
 
@@ -49,7 +50,7 @@ endif()
 find_package(ZLIB)
 if(ZLIB_FOUND)
     include_directories(${ZLIB_INCLUDE_DIRS})
-    set(mm_libraries ${mm_libraries} ${ZLIB_LIBRARIES})
+    set(compression_libraries ${compression_libraries} ${ZLIB_LIBRARIES})
     add_definitions(-DHAVE_ZLIB)
 endif()
 
