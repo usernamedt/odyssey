@@ -137,10 +137,14 @@ zstd_read(ZpqStream *zstream, void *buf, size_t size)
 
 	while (1)
 	{
+        printf("[zstd_read rx.pos=%zu rx.size=%zu rx_buffered=%zu]\n", zs->rx.pos,zs->rx.size, zs->rx_buffered);
+        fflush(stdout);
 		if (zs->rx.pos != zs->rx.size || zs->rx_buffered == 0)
 		{
 			rc = ZSTD_decompressStream(zs->rx_stream, &out, &zs->rx);
-			if (ZSTD_isError(rc))
+            printf("[zstd_read ZSTD_decompressStream rc=%zu rx.pos=%zu rx.size=%zu rx_buffered=%zu]\n", rc, zs->rx.pos,zs->rx.size, zs->rx_buffered);
+            fflush(stdout);
+            if (ZSTD_isError(rc))
 			{
 				zs->rx_error = ZSTD_getErrorName(rc);
 				return ZPQ_DECOMPRESS_ERROR;
@@ -150,6 +154,8 @@ zstd_read(ZpqStream *zstream, void *buf, size_t size)
 			{
 				zs->rx_total_raw += out.pos;
 				zs->rx_buffered = 0;
+                printf("[zstd_read READ_FAIL rx.pos=%zu rx.size=%zu rx_buffered=%zu]\n", zs->rx.pos,zs->rx.size, zs->rx_buffered);
+                fflush(stdout);
 				return out.pos;
 			}
 			zs->rx_buffered = rc;
@@ -159,6 +165,8 @@ zstd_read(ZpqStream *zstream, void *buf, size_t size)
 			}
 		}
 		rc = zs->rx_func(zs->arg, (char*)zs->rx.src + zs->rx.size, ZSTD_BUFFER_SIZE - zs->rx.size);
+        printf("[zstd_read RX_FUNC rc=%zu rx.pos=%zu rx.size=%zu rx_buffered=%zu]\n", rc, zs->rx.pos,zs->rx.size, zs->rx_buffered);
+        fflush(stdout);
 		if (rc > 0) /* read fetches some data */
 		{
 			zs->rx.size += rc;
@@ -167,6 +175,8 @@ zstd_read(ZpqStream *zstream, void *buf, size_t size)
 		else /* read failed */
 		{
 			zs->rx_total_raw += out.pos;
+            printf("[zstd_read READ_FAIL rx.pos=%zu rx.size=%zu rx_buffered=%zu]\n", zs->rx.pos,zs->rx.size, zs->rx_buffered);
+            fflush(stdout);
 			return rc;
 		}
 	}
