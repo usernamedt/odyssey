@@ -82,6 +82,8 @@ typedef struct ZstdStream
 	size_t         tx_not_flushed; /* Amount of data in internal zstd buffer */
 	size_t         tx_buffered;    /* Data which is consumed by ztd_write but not yet sent */
 	size_t         rx_buffered;    /* Data which is needed for ztd_read */
+    /* In case of the last call of zstd_read did not consume
+     * some data from rx_func we use is_deferred_rx_call to indicate this */
     size_t         is_deferred_rx_call;
 	zpq_tx_func    tx_func;
 	zpq_rx_func    rx_func;
@@ -136,10 +138,11 @@ zstd_read(ZpqStream *zstream, void *buf, size_t size)
 	out.dst = buf;
 	out.pos = 0;
 	out.size = size;
-    zs->is_deferred_rx_call = 1;
 
 	while (1)
 	{
+		/* indicate that we initiated read attempt from rx_func */
+		zs->is_deferred_rx_call = 1;
         printf("[zstd_read rx.pos=%zu rx.size=%zu rx_buffered=%zu]\n", zs->rx.pos,zs->rx.size, zs->rx_buffered);
         fflush(stdout);
 		if (zs->rx.pos != zs->rx.size || zs->rx_buffered == 0)
@@ -168,6 +171,7 @@ zstd_read(ZpqStream *zstream, void *buf, size_t size)
 			}
 		}
 		rc = zs->rx_func(zs->arg, (char*)zs->rx.src + zs->rx.size, ZSTD_BUFFER_SIZE - zs->rx.size);
+		/* if we've made a call to rx function, reset the deferred rx flag */
         zs->is_deferred_rx_call = 0;
         printf("[zstd_read RX_FUNC rc=%zu rx.pos=%zu rx.size=%zu rx_buffered=%zu]\n", rc, zs->rx.pos,zs->rx.size, zs->rx_buffered);
         fflush(stdout);
