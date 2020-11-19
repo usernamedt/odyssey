@@ -1,6 +1,8 @@
 #include "zpq_stream.h"
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>
+#include <errno.h>
 
 /*
  * Functions implementing streaming compression algorithm
@@ -474,22 +476,94 @@ ZpqStream*
 zpq_create(int algorithm_impl, zpq_tx_func tx_func, zpq_rx_func rx_func, void *arg, char* rx_data, size_t rx_data_size)
 {
     ZpqStream* stream = zpq_algorithms[algorithm_impl].create(tx_func, rx_func, arg, rx_data, rx_data_size);
-    if (stream)
+    if (stream){
         stream->algorithm = &zpq_algorithms[algorithm_impl];
+        printf("[zpq_create buf_rx=%zu]\n", stream->algorithm->buffered_rx(stream));
+        printf("[zpq_create buf_tx=%zu]\n", stream->algorithm->buffered_tx(stream));
+        fflush(stdout);
+    }
     return stream;
 }
 
 ssize_t
 zpq_read(ZpqStream *zs, void *buf, size_t size)
 {
-    return zs->algorithm->read(zs, buf, size);
+    printf("[zpq_read CALL] [alg=%c] [size=%zu]\n", zs->algorithm->name(), size);
+    fflush(stdout);
+    ssize_t rc;
+    rc = zs->algorithm->read(zs, buf, size);
+    if (rc >= 0) {
+        printf("[zpq_read OK] [alg=%c] [RC=%zd] [size=%zu]\n", zs->algorithm->name(), rc, size);
+        fflush(stdout);
+        ssize_t display_rc;
+        ssize_t last_rc;
+        if (rc > 12) {
+            display_rc = 12;
+            last_rc = rc - 12;
+        } else {
+            display_rc = rc;
+            last_rc = 0;
+        }
+
+        printf("START<");
+        fwrite(buf, sizeof(char), display_rc, stdout);
+        printf(">\n");
+        printf("END<");
+        fwrite(buf + last_rc, sizeof(char), display_rc, stdout);
+        printf(">\n");
+        fflush(stdout);
+    } else {
+        printf("[zpq_read FAIL] [alg=%c] [RC=%zd] [size=%zu] [err=%s]\n", zs->algorithm->name(), rc, size, strerror(errno));
+        fflush(stdout);
+    }
+    printf("[zpq_read buf_rx=%zu]\n", zs->algorithm->buffered_rx(zs));
+    fflush(stdout);
+    return rc;
 }
 
 ssize_t
 zpq_write(ZpqStream *zs, void const *buf, size_t size, size_t* processed)
 {
-    return zs->algorithm->write(zs, buf, size, processed);
+    printf("[zpq_write CALL] [alg=%c] [size=%zu] [proc=%zu]\n", zs->algorithm->name(), size, *processed);
+    fflush(stdout);
+
+//    printf("<");
+//      fwrite(buf, sizeof(char), size, stdout);
+//    printf(">\n");
+
+    ssize_t rc;
+    rc = zs->algorithm->write(zs, buf, size, processed);
+
+    if (rc >= 0) {
+        printf("[zpq_write OK] [alg=%c] [RC=%zd] [size=%zu] [proc=%zu]\n", zs->algorithm->name(), rc, size, *processed);
+        fflush(stdout);
+
+        ssize_t display_rc;
+        ssize_t last_rc;
+        if (rc > 12) {
+            display_rc = 12;
+            last_rc = rc - 12;
+        } else {
+            display_rc = rc;
+            last_rc = 0;
+        }
+
+        printf("START<");
+        fwrite(buf, sizeof(char), display_rc, stdout);
+        printf(">\n");
+        printf("END<");
+        fwrite(buf + last_rc, sizeof(char), display_rc, stdout);
+        printf(">\n");
+        fflush(stdout);
+    } else {
+        printf("[zpq_write FAIL] [alg=%c] [RC=%zd] [size=%zu] [proc=%zu] [err=%s]\n", zs->algorithm->name(), rc, size, *processed, strerror(errno));
+        fflush(stdout);
+    }
+    printf("[zpq_write buf_tx=%zu]\n", zs->algorithm->buffered_tx(zs));
+    fflush(stdout);
+    return rc;
 }
+
 
 void
 zpq_free(ZpqStream *zs)
