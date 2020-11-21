@@ -7,8 +7,8 @@
 void
 mm_compression_free(mm_io_t *io)
 {
-    if (io->zpq_stream)
-        zpq_free(io->zpq_stream);
+	if (io->zpq_stream)
+		mm_zpq_free(io->zpq_stream);
 }
 
 int
@@ -23,50 +23,55 @@ mm_compression_writev(mm_io_t *io, struct iovec *iov, int n, size_t *processed)
 	mm_iovcpy(buffer, iov, n);
 
 	int rc;
-	rc = zpq_write(io->zpq_stream, buffer, size, processed);
+	rc = mm_zpq_write(io->zpq_stream, buffer, size, processed);
 	free(buffer);
 	return rc;
 }
 
+/* Returns value > 0 when there is read operation pending. */
 int
 mm_compression_read_pending(mm_io_t *io)
 {
-    return zpq_buffered_rx(io->zpq_stream);
+	return mm_zpq_buffered_rx(io->zpq_stream) ||
+	       mm_zpq_deferred_rx(io->zpq_stream);
 }
 
+/* Returns value > 0 when there is write operation pending. */
 int
 mm_compression_write_pending(mm_io_t *io)
 {
-    return zpq_buffered_tx(io->zpq_stream);
+	return mm_zpq_buffered_tx(io->zpq_stream);
 }
 
+/*
+ * If client request compression, it sends list of supported
+ * compression algorithms - client_compression_algorithms.
+ * Each compression algorithm is identified
+ * by one letter ('f' - Facebook zstd, 'z' - zlib).
+ * Return value is the compression algorithm chosen by intersection
+ * of client and server supported compression algorithms.
+ * If match is not found, return value is MM_ZPQ_NO_COMPRESSION */
 MACHINE_API
-char machine_compression_choose_alg(char *client_compression_algorithms) {
-    /*
-     * If client request compression, it sends list of supported
-     * compression algorithms. Each compression algorirthm is idetified
-     * by one letter ('f' - Facebook zsts, 'z' - xlib)
-     */
+char
+machine_compression_choose_alg(char *client_compression_algorithms)
+{
+	/* machinarium supported libpq compression algorithms */
+	char server_compression_algorithms[MM_ZPQ_MAX_ALGORITHMS];
 
-    // odyssey supported compression algos
-    char server_compression_algorithms[ZPQ_MAX_ALGORITHMS];
+	/* chosen compression algorithm */
+	char compression_algorithm = MM_ZPQ_NO_COMPRESSION;
 
-    // chosen compression algo
-    char compression_algorithm = ZPQ_NO_COMPRESSION;
-    // char compression[6] = {'z',0,0,0,5,0}; /* message length = 5 */
-    // int rc;
+	/* get list of compression algorithms supported by machinarium */
+	mm_zpq_get_supported_algorithms(server_compression_algorithms);
 
-    /* Get list of compression algorithms, supported by server */
-    zpq_get_supported_algorithms(server_compression_algorithms);
-
-    /* Intersect lists */
-    while (*client_compression_algorithms != '\0') {
-        if (strchr(server_compression_algorithms,
-                   *client_compression_algorithms)) {
-            compression_algorithm = *client_compression_algorithms;
-            break;
-        }
-        client_compression_algorithms += 1;
-    }
+	/* intersect lists */
+	while (*client_compression_algorithms != '\0') {
+		if (strchr(server_compression_algorithms,
+		           *client_compression_algorithms)) {
+			compression_algorithm = *client_compression_algorithms;
+			break;
+		}
+		client_compression_algorithms += 1;
+	}
 	return compression_algorithm;
 }

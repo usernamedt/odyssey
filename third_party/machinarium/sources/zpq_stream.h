@@ -1,33 +1,45 @@
 /*
- * zpq_stream.h
+ * mm_zpq_stream.h
  *     Streaiming compression for libpq
  */
 
-#ifndef ZPQ_STREAM_H
-#define ZPQ_STREAM_H
+#ifndef MM_ZPQ_STREAM_H
+#define MM_ZPQ_STREAM_H
 
 #include <stdlib.h>
 
-#define ZPQ_IO_ERROR (-1)
-#define ZPQ_DECOMPRESS_ERROR (-2)
-#define ZPQ_MAX_ALGORITHMS (8)
-#define ZPQ_NO_COMPRESSION 'n'
+#define MM_ZPQ_IO_ERROR (-1)
+#define MM_ZPQ_DECOMPRESS_ERROR (-2)
+#define MM_ZPQ_MAX_ALGORITHMS (8)
+#define MM_ZPQ_NO_COMPRESSION 'n'
 
-struct ZpqStream;
-typedef struct ZpqStream ZpqStream;
+struct mm_zpq_stream;
+typedef struct mm_zpq_stream mm_zpq_stream;
 
-typedef ssize_t(*zpq_tx_func)(void* arg, void const* data, size_t size);
-typedef ssize_t(*zpq_rx_func)(void* arg, void* data, size_t size);
+typedef ssize_t(*mm_zpq_tx_func)(void* arg, void const* data, size_t size);
+typedef ssize_t(*mm_zpq_rx_func)(void* arg, void* data, size_t size);
 
-ZpqStream* zpq_create(int impl, zpq_tx_func tx_func, zpq_rx_func rx_func, void* arg, char* rx_data, size_t rx_data_size);
-ssize_t zpq_read(ZpqStream* zs, void* buf, size_t size);
-ssize_t zpq_write(ZpqStream* zs, void const* buf, size_t size, size_t* processed);
-char const* zpq_error(ZpqStream* zs);
-size_t zpq_buffered_tx(ZpqStream* zs);
-size_t zpq_buffered_rx(ZpqStream* zs);
-void zpq_free(ZpqStream* zs);
+mm_zpq_stream * zpq_create(int impl,
+           mm_zpq_tx_func tx_func,
+           mm_zpq_rx_func rx_func, void* arg, char* rx_data, size_t rx_data_size);
+ssize_t
+mm_zpq_read(mm_zpq_stream * zs, void* buf, size_t size);
+ssize_t
+mm_zpq_write(mm_zpq_stream * zs, void const* buf, size_t size, size_t* processed);
+char const*
+mm_zpq_error(mm_zpq_stream * zs);
+size_t
+mm_zpq_buffered_tx(mm_zpq_stream * zs);
+size_t
+mm_zpq_buffered_rx(mm_zpq_stream * zs);
+_Bool
+mm_zpq_deferred_rx(mm_zpq_stream * zs);
+void
+mm_zpq_free(mm_zpq_stream * zs);
 
-void zpq_get_supported_algorithms(char algorithms[ZPQ_MAX_ALGORITHMS]);
-int  zpq_get_algorithm_impl(char name);
+void
+mm_zpq_get_supported_algorithms(char *algorithms);
+int
+mm_zpq_get_algorithm_impl(char name);
 
 #endif

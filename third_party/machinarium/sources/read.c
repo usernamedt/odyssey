@@ -95,35 +95,10 @@ machine_read_raw(machine_io_t *obj, void *buf, size_t size)
 
     /* If streaming compression is enabled then use correspondent compression read function. */
 	if (mm_compression_is_active(io)) {
-		return zpq_read(io->zpq_stream, buf, size);
+		return mm_zpq_read(io->zpq_stream, buf, size);
 	}
 
-	return machine_read_raw_old(obj, buf, size);
-}
-
-MACHINE_API ssize_t
-machine_read_raw_old(machine_io_t *obj, void *buf, size_t size)
-{
-	mm_io_t *io = mm_cast(mm_io_t *, obj);
-	mm_errno_set(0);
-	ssize_t rc;
-	if (mm_tls_is_active(io))
-		rc = mm_tls_read(io, buf, size);
-	else
-		rc = mm_socket_read(io->fd, buf, size);
-
-	if (rc > 0) {
-		return rc;
-	}
-	if (rc < 0) {
-		int errno_ = errno;
-		mm_errno_set(errno_);
-		if (errno_ == EAGAIN || errno_ == EWOULDBLOCK || errno_ == EINTR)
-			return -1;
-	}
-	/* error of eof */
-	io->connected = 0;
-	return rc;
+	return mm_io_read(io, buf, size);
 }
 
 static inline int
